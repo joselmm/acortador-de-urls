@@ -1,77 +1,96 @@
+require('dotenv').config(); // Carga las variables del .env
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
 const app = express();
-const PORT = 3000;
+
+// Configuraciones desde el entorno
+const PORT = process.env.PORT || 3000;
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const DB_PATH = path.join(__dirname, 'db.json');
 
-// Helper para leer/escribir en el JSON
-const readDB = () => JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
-const writeDB = (data) => fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+// IMPORTANTE: Si vas a usar Nginx como proxy inverso
+app.set('trust proxy', true);
 
-// --- 1. Endpoint para acortar: /short?url=... ---
-app.get('/short', (req, res) => {
-    const { url } = req.query;
-
-    if (!url) {
-        return res.status(400).json({ error: 'Debes proporcionar una URL' });
-    }
-
-    const db = readDB();
-    const id = crypto.randomBytes(4).toString('hex'); // Genera algo como "sjd8723"
-    
-    const newEntry = {
-        id,
-        originalUrl: url.startsWith('http') ? url : `https://${url}`,
-        createdAt: new Date().getTime()
-    };
-
-    db.push(newEntry);
-    writeDB(db);
-
-    res.json({
-        message: 'URL acortada con éxito',
-        shortUrl: `http://localhost:${PORT}/${id}`,
-        data: newEntry
-    });
-});
-
-// --- 2. Endpoint Dinámico para redirección ---
-app.get('/:id', (req, res) => {
-    const { id } = req.params;
-    const db = readDB();
-    
-    const entry = db.find(item => item.id === id);
-
-    if (entry) {
-        return res.redirect(entry.originalUrl);
-    }
-
-    res.status(404).send('URL no encontrada o expirada.');
-});
-
-// --- 3. Lógica de Limpieza (Cada 24 horas) ---
-const removeOldUrls = () => {
-    console.log('--- Ejecutando limpieza de URLs antiguas ---');
-    const db = readDB();
-    const DIEZ_DIAS_EN_MS = 10 * 24 * 60 * 60 * 1000;
-    const ahora = Date.now();
-
-    const dbFiltrada = db.filter(item => (ahora - item.createdAt) < DIEZ_DIAS_EN_MS);
-    
-    const eliminados = db.length - dbFiltrada.length;
-    writeDB(dbFiltrada);
-    
-    console.log(`Limpieza terminada. Se eliminaron ${eliminados} URLs.`);
+// Helpers
+const readDB = () => {
+    try {
+        if (!fs.existsSync(DB_PATH)) return [];
+        const data = fs.readFileSync(DB_PATH, 'utf-8');
+        return data ? JSON.parse(data) : [];
+    } catch (e) { return []; }
 };
 
-// Ejecutar limpieza al iniciar y luego cada 24 horas
+const writeDB = (data) => fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+
+// --- Endpoint para acortar ---
+app.get('/short', (req, res) => {
+    try {
+        const { url } = req.query;
+        if (!url) throw new Error('URL requerida');
+
+        const db = readDB();
+        const id = crypto.randomBytes(4).toString('hex');
+        
+        const newEntry = {
+            id,
+            originalUrl: url.startsWith('http') ? url : `https://${url}`,
+            createdAt: Date.now()
+        };
+
+        db.push(newEntry);
+        writeDB(db);
+
+        res.json({
+            noError: true,
+            shortUrl: `${BASE_URL}/${id}`, // <--- Usando la URL del entorno
+            data: newEntry
+        });
+
+    } catch (error) {
+        res.status(400).json({ noError: false, message: error.message });
+    }
+});
+
+// --- Endpoint dinámico de redirección ---
+app.get('/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const db = readDB();
+        const entry = db.find(item => item.id === id);
+
+        if (!entry) {
+            return res.status(404).json({ noError: false, message: "URL no encontrada" });
+        }
+
+        res.redirect(entry.originalUrl);
+
+    } catch (error) {
+        res.status(500).json({ noError: false, message: "Error en el servidor" });
+    }
+});
+
+// --- Limpieza diaria ---
+const removeOldUrls = () => {
+    try {
+        const db = readDB();
+        const DIEZ_DIAS_MS = 10 * 24 * 60 * 60 * 1000;
+        const ahora = Date.now();
+
+        const dbFiltrada = db.filter(item => (ahora - item.createdAt) < DIEZ_DIAS_MS);
+        writeDB(dbFiltrada);
+        console.log(`[Limpieza] URLs actualizadas a las ${new Date().toISOString()}`);
+    } catch (e) {
+        console.error("Error en limpieza:", e.message);
+    }
+};
+
 setInterval(removeOldUrls, 24 * 60 * 60 * 1000);
 
 app.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
-    // Ejecutamos una limpieza inicial por si acaso
-    removeOldUrls(); 
+    console.log(`Servidor en puerto ${PORT}`);
+    console.log(`URL Base configurada: ${BASE_URL}`);
+    removeOldUrls();
 });
