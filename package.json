@@ -1,0 +1,26 @@
+{
+  "name": "acortador-de-urls",
+  "version": "1.0.0",
+  "description": "es un acortador de urls sencillo y local sin db externas",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joselmm/acortador-de-urls.git"
+  },
+  "keywords": [
+    "url",
+    "shortener"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/joselmm/acortador-de-urls/issues"
+  },
+  "homepage": "https://github.com/joselmm/acortador-de-urls#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
