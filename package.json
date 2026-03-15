@@ -6,6 +6,7 @@
   "scripts": {
     "test": "node index"
   },
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/joselmm/acortador-de-urls.git"
@@ -21,6 +22,7 @@
   },
   "homepage": "https://github.com/joselmm/acortador-de-urls#readme",
   "dependencies": {
+    "@supabase/supabase-js": "^2.99.1",
     "dotenv": "^17.3.1",
     "express": "^5.2.1"
   }
