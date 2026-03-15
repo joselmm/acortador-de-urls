@@ -83,8 +83,8 @@ const removeOldUrls = async () => {
   }
 };
 
-setInterval(removeOldUrls, 24 * 60 * 60 * 1000);
-
+/* setInterval(removeOldUrls, 24 * 60 * 60 * 1000);
+ */
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en ${BASE_URL}`);
 });
