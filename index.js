@@ -2,7 +2,7 @@ require('dotenv').config(); // Carga las variables del .env
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
+
 
 const app = express();
 
@@ -32,7 +32,14 @@ app.get('/short', (req, res) => {
         if (!url) throw new Error('URL requerida');
 
         const db = readDB();
-        const id = crypto.randomBytes(4).toString('hex');
+	const n = 5;
+	const id = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+          .split('')
+          .map(v => ({ v, r: Math.random() }))
+          .sort((a, b) => a.r - b.r)
+          .map(({ v }) => v)
+          .slice(0, n)
+          .join('');
         
         const newEntry = {
             id,
