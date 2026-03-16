@@ -85,7 +85,7 @@ const removeOldUrls = async () => {
 };
 // Configuración en minutos para que sea más legible
 const MIN_MINUTOS = 2; 
-const MAX_MINUTOS = 8;
+const MAX_MINUTOS = 13;
 
 async function autoPing() {
   try {
