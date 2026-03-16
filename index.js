@@ -72,6 +72,7 @@ app.get('/short', async (req, res) => {
 });
 
 // --- Endpoint de redirección ---
+// --- Endpoint de redirección ---
 app.get('/:id', async (req, res) => {
   const { id } = req.params;
   const result = await db.getByColumn(process.env.TABLE_NAME, 'id', id);
@@ -80,7 +81,32 @@ app.get('/:id', async (req, res) => {
     return res.redirect(result.data.original_url);
   }
 
-  res.status(404).json({ noError: false, messageError: "URL no encontrada" });
+  // --- RESPUESTA ESTÉTICA ---
+  res.status(404).send(`
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Enlace no encontrado</title>
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; color: #333; }
+            .container { text-align: center; background: white; padding: 3rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 400px; }
+            h1 { font-size: 72px; margin: 0; color: #ff4757; }
+            p { font-size: 18px; color: #57606f; margin: 10px 0 25px; }
+            .btn { text-decoration: none; background: #2f3542; color: white; padding: 12px 25px; border-radius: 8px; transition: 0.3s; font-weight: bold; }
+            .btn:hover { background: #57606f; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>404</h1>
+            <p>¡Ups! Este enlace ha expirado o no existe.</p>
+            
+        </div>
+    </body>
+    </html>
+  `);
 });
 
 // --- Limpieza diaria adaptada a SQL ---
