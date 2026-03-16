@@ -21,11 +21,11 @@ app.get('/short', async (req, res) => {
 
     // VERFIFICAR SI ES URL VALIDA
     try {
-        const parsedUrl = new URL(original_url);
-        if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error();
-        if (!parsedUrl.hostname.includes('.')) throw new Error(); // Evita "https://hola"
+      const parsedUrl = new URL(original_url);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error();
+      if (!parsedUrl.hostname.includes('.')) throw new Error(); // Evita "https://hola"
     } catch (e) {
-        throw new Error('La URL no es válida o le falta el dominio');
+      throw new Error('La URL no es válida o le falta el dominio');
     }
 
     // 1. BUSCAR SI YA EXISTE (Para no redundar)
@@ -93,22 +93,25 @@ const removeOldUrls = async () => {
   }
 };
 // Configuración en minutos para que sea más legible
-const MIN_MINUTOS = 2; 
+const MIN_MINUTOS = 5;
 const MAX_MINUTOS = 13;
 
 async function autoPing() {
   try {
     const res = await fetch(BASE_URL);
+    // Buscamos en la columna 'id' (que tiene un índice) un valor imposible.
+    await db.getByColumn(process.env.TABLE_NAME, 'id', '0');
+
     console.log(`[Auto-Ping] Ejecutado con éxito.`);
   } catch (err) {
     console.error("[Auto-Ping] Error de conexión.");
   } finally {
     // 1. Calculamos un tiempo base en minutos
     const minutosAleatorios = Math.random() * (MAX_MINUTOS - MIN_MINUTOS) + MIN_MINUTOS;
-    
+
     // 2. Añadimos un "ruido" de milisegundos para que no sea un número exacto
     const ruidoMilisegundos = Math.random() * 1000;
-    
+
     const delayFinal = (minutosAleatorios * 60 * 1000) + ruidoMilisegundos;
 
     // 3. Log discreto: redondeamos para no mostrar precisión sospechosa
