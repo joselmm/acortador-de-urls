@@ -15,12 +15,12 @@ app.get('/short', async (req, res) => {
   try {
     const { url } = req.query;
     if (!url) throw new Error('URL requerida');
-    
+
     const original_url = url.startsWith('http') ? url : `https://${url}`;
 
     // 1. BUSCAR SI YA EXISTE (Para no redundar)
     const existing = await db.getByColumn(process.env.TABLE_NAME, 'original_url', original_url);
-    
+
     if (existing.noError && existing.data) {
       return res.json({
         noError: true,
@@ -77,14 +77,25 @@ app.get('/:id', async (req, res) => {
 const removeOldUrls = async () => {
   const TEN_DAYS_AGO = Date.now() - (10 * 24 * 60 * 60 * 1000);
   const result = await db.deleteOlderThan(process.env.TABLE_NAME, 'created_at', TEN_DAYS_AGO);
-  
+
   if (result.noError) {
     console.log(`[Limpieza] Completada. Filas borradas: ${result.data?.length || 0}`);
   }
 };
 
+async function autoPing() {
+  try {
+    const res = await fetch(BASE_URL); // Ya tienes BASE_URL definida arriba
+    console.log(`[Auto-Ping] Status: ${res.status}`);
+  } catch (err) {
+    console.error("[Auto-Ping] Falló:", err.message);
+  }
+}
+
+
 /* setInterval(removeOldUrls, 24 * 60 * 60 * 1000);
- */
+*/
 app.listen(PORT, () => {
+  setInterval(autoPing, 5 * 60 * 1000);
   console.log(`Servidor corriendo en ${BASE_URL}`);
 });
