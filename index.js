@@ -83,20 +83,33 @@ const removeOldUrls = async () => {
     console.log(`[Limpieza] Completada. Filas borradas: ${result.data?.length || 0}`);
   }
 };
+// Configuración en minutos para que sea más legible
+const MIN_MINUTOS = 2; 
+const MAX_MINUTOS = 8;
 
 async function autoPing() {
   try {
-    const res = await fetch(BASE_URL); // Ya tienes BASE_URL definida arriba
-    console.log(`[Auto-Ping] Status: ${res.status}`);
+    const res = await fetch(BASE_URL);
+    console.log(`[Auto-Ping] Ejecutado con éxito.`);
   } catch (err) {
-    console.error("[Auto-Ping] Falló:", err.message);
+    console.error("[Auto-Ping] Error de conexión.");
+  } finally {
+    // 1. Calculamos un tiempo base en minutos
+    const minutosAleatorios = Math.random() * (MAX_MINUTOS - MIN_MINUTOS) + MIN_MINUTOS;
+    
+    // 2. Añadimos un "ruido" de milisegundos para que no sea un número exacto
+    const ruidoMilisegundos = Math.random() * 1000;
+    
+    const delayFinal = (minutosAleatorios * 60 * 1000) + ruidoMilisegundos;
+
+    // 3. Log discreto: redondeamos para no mostrar precisión sospechosa
+    console.log(`[Auto-Ping] Esperando aprox. ${Math.round(minutosAleatorios)} minutos para el siguiente.`);
+
+    setTimeout(autoPing, delayFinal);
   }
 }
 
-
-/* setInterval(removeOldUrls, 24 * 60 * 60 * 1000);
-*/
 app.listen(PORT, () => {
-  setInterval(autoPing, 5 * 60 * 1000);
-  console.log(`Servidor corriendo en ${BASE_URL}`);
+  console.log(`Servidor activo en ${BASE_URL}`);
+  autoPing(); // Inicio del ciclo
 });
