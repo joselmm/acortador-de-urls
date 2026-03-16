@@ -19,6 +19,15 @@ app.get('/short', async (req, res) => {
 
     const original_url = url.startsWith('http') ? url : `https://${url}`;
 
+    // VERFIFICAR SI ES URL VALIDA
+    try {
+        const parsedUrl = new URL(original_url);
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error();
+        if (!parsedUrl.hostname.includes('.')) throw new Error(); // Evita "https://hola"
+    } catch (e) {
+        throw new Error('La URL no es válida o le falta el dominio');
+    }
+
     // 1. BUSCAR SI YA EXISTE (Para no redundar)
     const existing = await db.getByColumn(process.env.TABLE_NAME, 'original_url', original_url);
 
