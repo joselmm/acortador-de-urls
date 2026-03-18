@@ -1,0 +1,13 @@
+[build]
+  functions = "netlify/functions"
+
+[[redirects]]
+  # Esto hace que cualquier ruta apunte a tu función de Express
+  from = "/*"
+  to = "/.netlify/functions/api"
+  status = 200
+
+[functions]
+  # Configura Node.js 20 para evitar problemas de versiones
+  node_bundler = "esbuild"
+  external_node_modules = ["express"]
