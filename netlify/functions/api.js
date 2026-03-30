@@ -13,13 +13,11 @@ app.set('trust proxy', true);
 // Lógica de BASE_URL dinámica
 // Netlify proporciona process.env.URL automáticamente en producción
 const getBaseUrl = (req) => {
-  if (process.env.NETLIFY) {
-    // Si estamos en Netlify, usamos el dominio del sitio
-    return process.env.URL; 
-  }
   // Si estamos en local, usamos lo que tengas en tu .env o localhost
   return process.env.BASE_URL || `http://${req.get('host')}`;
 };
+
+const BASE_URL = getBaseUrl();
 
 app.get('/short', async (req, res) => {
   try {
