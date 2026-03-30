@@ -21,11 +21,65 @@ const getBaseUrl = (req) => {
   return process.env.BASE_URL || `http://${req.get('host')}`;
 };
 
-// --- Endpoint para acortar ---
 app.get('/short', async (req, res) => {
   try {
     const { url } = req.query;
     if (!url) throw new Error('URL requerida');
+
+    const original_url = url.startsWith('http') ? url : `https://${url}`;
+
+    // VERFIFICAR SI ES URL VALIDA
+    try {
+      const parsedUrl = new URL(original_url);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error();
+      if (!parsedUrl.hostname.includes('.')) throw new Error(); // Evita "https://hola"
+    } catch (e) {
+      throw new Error('La URL no es válida o le falta el dominio');
+    }
+
+    // 1. BUSCAR SI YA EXISTE (Para no redundar)
+    const existing = await db.getByColumn(process.env.TABLE_NAME, 'original_url', original_url);
+
+    if (existing.noError && existing.data) {
+      return res.json({
+        noError: true,
+        shortUrl: `${BASE_URL}/${existing.data.id}`,
+        data: existing.data,
+        info: "Ya existía en la base de datos"
+      });
+    }
+
+    // 2. SI NO EXISTE, CREAR ID Y GUARDAR
+    const id = generateID();
+
+    const newEntry = {
+      id,
+      original_url,
+      // Nota: created_at lo puede poner Supabase automáticamente
+    };
+
+    const insertRes = await db.insertRow(process.env.TABLE_NAME, newEntry);
+
+    if (!insertRes.noError) throw new Error(insertRes.messageError);
+
+    res.json({
+      noError: true,
+      shortUrl: `${BASE_URL}/${id}`,
+      data: insertRes.data
+    });
+
+  } catch (error) {
+    res.status(400).json({ noError: false, messageError: error.message });
+  }
+});
+
+
+
+app.post('/short', async (req, res) => {
+  try {
+    // Ahora extraemos la url del cuerpo (POST)
+    const { url } = req.body; 
+    if (!url) throw new Error('URL requerida en el cuerpo de la petición');
 
     const original_url = url.startsWith('http') ? url : `https://${url}`;
 
@@ -38,40 +92,34 @@ app.get('/short', async (req, res) => {
       throw new Error('La URL no es válida o le falta el dominio');
     }
 
-    const currentBase = getBaseUrl(req);
-
     // 1. BUSCAR SI YA EXISTE
     const existing = await db.getByColumn(process.env.TABLE_NAME, 'original_url', original_url);
 
     if (existing.noError && existing.data) {
       return res.json({
         noError: true,
-        shortUrl: `${currentBase}/${existing.data.id}`,
-        data: existing.data,
+        shortUrl: `${BASE_URL}/${existing.data.id}`,
         info: "Ya existía en la base de datos"
       });
     }
 
-    // 2. GENERAR ID ALEATORIO
+    // 2. GENERAR ID CORTO (5 caracteres)
+    // 2. SI NO EXISTE, CREAR ID Y GUARDAR
     const n = 5;
-    const id = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-      .split('')
-      .map(v => ({ v, r: Math.random() }))
-      .sort((a, b) => a.r - b.r)
-      .map(({ v }) => v)
-      .slice(0, n)
-      .join('');
+    const id = generateID()
 
-    const newEntry = { id, original_url };
-
+    const newEntry = {
+      id,
+      original_url,
+      // Nota: created_at lo puede poner Supabase automáticamente
+    };
     const insertRes = await db.insertRow(process.env.TABLE_NAME, newEntry);
 
     if (!insertRes.noError) throw new Error(insertRes.messageError);
 
     res.json({
       noError: true,
-      shortUrl: `${currentBase}/${id}`,
-      data: insertRes.data
+      shortUrl: `${BASE_URL}/${id}`
     });
 
   } catch (error) {
@@ -116,6 +164,19 @@ app.get('/:id', async (req, res) => {
     </html>
   `);
 });
+
+
+function generateID() {
+  const n = 5;
+  const id = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    .split('')
+    .map(v => ({ v, r: Math.random() }))
+    .sort((a, b) => a.r - b.r)
+    .map(({ v }) => v)
+    .slice(0, n)
+    .join('');
+  return id;
+}
 
 // Exportar para Netlify
 export const handler = serverless(app);
