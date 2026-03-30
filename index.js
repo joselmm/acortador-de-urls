@@ -8,7 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 app.use(cors());
-
+app.use(express.json());
 app.set('trust proxy', true);
 
 // --- Endpoint para acortar ---
@@ -41,14 +41,7 @@ app.get('/short', async (req, res) => {
     }
 
     // 2. SI NO EXISTE, CREAR ID Y GUARDAR
-    const n = 5;
-    const id = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-      .split('')
-      .map(v => ({ v, r: Math.random() }))
-      .sort((a, b) => a.r - b.r)
-      .map(({ v }) => v)
-      .slice(0, n)
-      .join('');
+    const id = generateID();
 
     const newEntry = {
       id,
@@ -64,6 +57,60 @@ app.get('/short', async (req, res) => {
       noError: true,
       shortUrl: `${BASE_URL}/${id}`,
       data: insertRes.data
+    });
+
+  } catch (error) {
+    res.status(400).json({ noError: false, messageError: error.message });
+  }
+});
+
+
+
+app.post('/short', async (req, res) => {
+  try {
+    // Ahora extraemos la url del cuerpo (POST)
+    const { url } = req.body; 
+    if (!url) throw new Error('URL requerida en el cuerpo de la petición');
+
+    const original_url = url.startsWith('http') ? url : `https://${url}`;
+
+    // VERIFICAR SI ES URL VALIDA
+    try {
+      const parsedUrl = new URL(original_url);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error();
+      if (!parsedUrl.hostname.includes('.')) throw new Error();
+    } catch (e) {
+      throw new Error('La URL no es válida o le falta el dominio');
+    }
+
+    // 1. BUSCAR SI YA EXISTE
+    const existing = await db.getByColumn(process.env.TABLE_NAME, 'original_url', original_url);
+
+    if (existing.noError && existing.data) {
+      return res.json({
+        noError: true,
+        shortUrl: `${BASE_URL}/${existing.data.id}`,
+        info: "Ya existía en la base de datos"
+      });
+    }
+
+    // 2. GENERAR ID CORTO (5 caracteres)
+    // 2. SI NO EXISTE, CREAR ID Y GUARDAR
+    const n = 5;
+    const id = generateID()
+
+    const newEntry = {
+      id,
+      original_url,
+      // Nota: created_at lo puede poner Supabase automáticamente
+    };
+    const insertRes = await db.insertRow(process.env.TABLE_NAME, newEntry);
+
+    if (!insertRes.noError) throw new Error(insertRes.messageError);
+
+    res.json({
+      noError: true,
+      shortUrl: `${BASE_URL}/${id}`
     });
 
   } catch (error) {
@@ -121,6 +168,18 @@ const removeOldUrls = async () => {
 // Configuración en minutos para que sea más legible
 const MIN_MINUTOS = 5;
 const MAX_MINUTOS = 13;
+
+function generateID() {
+  const n = 5;
+  const id = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    .split('')
+    .map(v => ({ v, r: Math.random() }))
+    .sort((a, b) => a.r - b.r)
+    .map(({ v }) => v)
+    .slice(0, n)
+    .join('');
+  return id;
+}
 
 async function autoPing() {
   try {
